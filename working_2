@@ -1,0 +1,59 @@
+import psycopg2
+import csv
+import os
+
+# Database connection parameters
+host = 'your_host'
+dbname = 'your_dbname'
+user = 'your_user'
+password = 'your_password'
+
+# Connect to PostgreSQL
+conn = psycopg2.connect(host=host, dbname=dbname, user=user, password=password)
+cursor = conn.cursor()
+
+# List of dag_ids to process
+dag_ids = ['US_TEC_CET_A', 'US_TEC_CET_B', 'US_TEC_CET_C']  # Example with multiple dag_ids
+
+# Step 1: Loop through each dag_id in dag_ids list
+for dag_id in dag_ids:
+    
+    # Query to fetch the last 3 run_id for the current dag_id
+    query1 = f"SELECT run_id FROM dag_run WHERE dag_id = '{dag_id}' ORDER BY run_id DESC LIMIT 3;"
+    cursor.execute(query1)
+    run_ids = cursor.fetchall()
+
+    # Step 2: Loop through each run_id for the current dag_id
+    for run_id in run_ids:
+        run_id_str = run_id[0]  # Extract run_id as a string
+        
+        # Step 3: Prepare the second query to get task details
+        query2 = f"""
+        SELECT task_id, duration, 
+        CONCAT(FLOOR(duration / 60), ':', LPAD(CAST(FLOOR(CAST(duration AS INTEGER) % 60) AS TEXT), 2, '0')) AS duration_in_min
+        FROM task_instance 
+        WHERE dag_id = '{dag_id}' 
+        AND run_id = '{run_id_str}'
+        ORDER BY start_date ASC;
+        """
+        cursor.execute(query2)
+        task_data = cursor.fetchall()
+
+        # Step 4: Create the output path based on dag_id and run_id
+        output_path = f"/data/duni/{dag_id}/{run_id_str}.csv"
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+        # Step 5: Write the task data to CSV
+        with open(output_path, 'w', newline='') as csvfile:
+            csv_writer = csv.writer(csvfile)
+            csv_writer.writerow(['run_id', 'task_id', 'duration', 'duration_in_min'])  # header
+            for row in task_data:
+                csv_writer.writerow([run_id_str, row[0], row[1], row[2]])
+
+        print(f"Data for run_id {run_id_str} of dag_id {dag_id} has been written to {output_path}")
+
+# Close cursor and connection
+cursor.close()
+conn.close()
+
+print("All data has been written to CSV files.")
