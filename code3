@@ -1,0 +1,10 @@
+SELECT
+    dr.execution_date,
+    dr.state
+FROM
+    dag_run dr
+WHERE
+    dr.dag_id = 'US_PGT'
+ORDER BY
+    dr.execution_date DESC
+LIMIT 1;
