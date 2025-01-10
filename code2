@@ -1,0 +1,8 @@
+SELECT
+    task_id,
+    EXTRACT(EPOCH FROM end_date) - EXTRACT(EPOCH FROM start_date) AS duration_seconds
+FROM
+    task_instance
+WHERE
+    dag_id = 'US_PGT'
+    AND state = 'success';
