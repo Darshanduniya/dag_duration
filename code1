@@ -1,0 +1,27 @@
+WITH recent_runs AS (
+    SELECT 
+        dag_id,
+        execution_date
+    FROM 
+        dag_run
+    WHERE 
+        dag_id LIKE 'US_%'  -- This condition filters for DAG names that start with 'US_'
+    ORDER BY 
+        execution_date DESC
+    LIMIT 3
+)
+SELECT 
+    ti.dag_id,
+    ti.task_id,
+    ti.execution_date,
+    ti.start_date,
+    ti.end_date,
+    EXTRACT(EPOCH FROM (ti.end_date - ti.start_date)) AS duration_seconds
+FROM 
+    task_instance ti
+JOIN 
+    recent_runs rr
+ON 
+    ti.dag_id = rr.dag_id AND ti.execution_date = rr.execution_date
+ORDER BY 
+    ti.execution_date DESC, ti.task_id;
